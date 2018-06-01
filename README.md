@@ -57,7 +57,7 @@ To run scripts with the correct environment:
 2. Type `Python: Select Interpreter`
 3. Choose: `omniroute_analysis_env` (should show path ending in `...\\envs\\omniroute_analysis_env\\python.exe`)
 
-## Running Scripts
+## Running Preprocessing Scripts
 
 To ensure that all modules (e.g., `utils/`, `pipeline/`) are correctly importable, run scripts using Python’s `-m` module flag from the project root. For example:
 
