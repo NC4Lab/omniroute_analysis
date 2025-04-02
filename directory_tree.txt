@@ -1,0 +1,25 @@
+omniroute_analysis/
+├── .env
+├── .gitignore
+├── README.md
+├── STYLE_GUIDE.md
+├── analysis
+│   ├── ros_events.py
+│   ├── trodes_csc.py
+│   └── trodes_spikes.py
+├── experiment
+│   └── gate_manuscript
+│       ├── analysis.ipynb
+│       └── preprocessing.ipynb
+├── omniroute_analysis_env.yml
+├── testing
+│   ├── print_tree.py
+│   └── test_setup_1.py
+├── utils
+    ├── config.py
+    ├── path.py
+    ├── metadata.py
+    ├── io_binary.py
+    ├── io_rosbag.py
+    ├── io_trodes.py
+    └── io_ts_sync.py

@@ -1,7 +1,7 @@
 import os
 
 # 🔧 Change this path to point to the folder you want to visualize
-ROOT_DIR = r"Z:\NC40014\240209_training\extracted"
+ROOT_DIR = r"C:\Users\lester\MeDocuments\Research\MadhavLab\CodeBase\omniroute_analysis"
 
 def print_tree(root, prefix=""):
     """Recursively build a tree string."""

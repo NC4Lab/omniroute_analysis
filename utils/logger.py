@@ -1,0 +1,84 @@
+"""
+Module: logger.py
+
+Purpose:
+    Lightweight utility for structured logging with elapsed time tracking and nested operations.
+"""
+
+import time
+from datetime import datetime
+
+class Logger:
+    def __init__(self):
+        self.indent_level = 0
+        self.indent_str = "    "
+
+    def _timestamp(self) -> str:
+        return datetime.now().strftime("[%H:%M:%S]")
+
+    def _indent(self) -> str:
+        return self.indent_str * self.indent_level
+
+    def log(self, message: str) -> None:
+        """
+        Log a simple message with indentation and timestamp.
+
+        Parameters:
+            message (str): The message to print.
+        """
+        print(f"{self._timestamp()} {self._indent()}{message}")
+
+    def start(self, message: str) -> float:
+        """
+        Log the start of a long-running operation.
+
+        Parameters:
+            message (str): Description of the operation.
+
+        Returns:
+            float: Start time (use with .end())
+        """
+        self.log(f"Starting: {message}")
+        self.indent_level += 1
+        return time.time()
+
+    def end(self, start_time: float) -> None:
+        """
+        Log the end of an operation started with .start()
+
+        Parameters:
+            start_time (float): The start time returned by .start()
+        """
+        elapsed = time.time() - start_time
+        self.indent_level = max(0, self.indent_level - 1)
+        self.log(f"Finished in {elapsed:.2f}s")
+
+    def time_block(self, message: str):
+        """
+        Context manager for timing a code block.
+
+        Parameters:
+            message (str): Description of the block being timed.
+
+        Usage:
+            with logger.time_block("Step name"):
+                do_work()
+        """
+        return _TimerContext(self, message)
+
+
+class _TimerContext:
+    def __init__(self, logger: Logger, message: str):
+        self.logger = logger
+        self.message = message
+        self.start_time = None
+
+    def __enter__(self):
+        self.start_time = self.logger.start(self.message)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.logger.end(self.start_time)
+
+
+# Instantiate a default global logger for convenience
+logger = Logger()
