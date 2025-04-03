@@ -1,0 +1,34 @@
+experiment_x/                            # Top-level project directory
+└── NC40008/                             # Rat-level folder (unique animal ID)
+    ├── ephys_channel_map_metadata.csv   # Per-rat editable metadata table (channel-level)
+    ├── 20250328_134136/                 # Individual session folder (YYMMDD_HHMMSS format)
+    │   ├── raw/
+    │   │   └── Trodes/
+    │   │       └── 20250328_134136_merged.rec     # Original SpikeGadgets .rec file
+    │   │
+    │   ├── ROS/
+    │   │   └── ros_session_20250328_134222.bag    # Original ROS .bag file [may not follow consistant naming conventions]
+    │   │
+    │   └── extracted/                 # Preprocessed and derived data for this session
+    │       ├── session_metadata.pkl      # Serialized metadata object for the session-related data
+    │       ├── ephys_metadata.pkl        # Serialized metadata object for the elecrophysiology-related data
+    │
+    │       ├── dio/                      # Digital input event channels (e.g., sync) [may not use this]
+    │       │   ├── din1.dat
+    │       │   ├── din2.dat
+    │       │   └── ...
+    │
+    │       ├── spikes/                   # Sorted spike data (per unit or cluster)
+    │       │   ├── unit1.dat
+    │       │   ├── unit2.dat
+    │       │   └── ...
+    │
+    │       ├── csc/                      # Continuous sampled channel data  [likely will not use this]
+    │       │   ├── csc1.dat
+    │       │   ├── csc2.dat
+    │       │   └── ...
+    │
+    │       └── ...                       # Additional derived arrays, timestamps, sync files
+    │
+    └── ...                               # Other session folders for this rat
+└── ...                                   # Other rat folders (e.g., NC40009, NC40010, etc.)

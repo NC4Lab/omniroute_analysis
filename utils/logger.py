@@ -14,7 +14,9 @@ class Logger:
         self.indent_str = "    "
 
     def _timestamp(self) -> str:
-        return datetime.now().strftime("[%H:%M:%S]")
+        now = datetime.now()
+        ms = int(now.microsecond / 1000)
+        return f"[{now.hour:02}:{now.minute:02}:{now.second:02}.{ms:03}]"
 
     def _indent(self) -> str:
         return self.indent_str * self.indent_level
@@ -50,8 +52,10 @@ class Logger:
             start_time (float): The start time returned by .start()
         """
         elapsed = time.time() - start_time
+        seconds = int(elapsed)
+        milliseconds = int((elapsed - seconds) * 1000)
         self.indent_level = max(0, self.indent_level - 1)
-        self.log(f"Finished in {elapsed:.2f}s")
+        self.log(f"Finished in {seconds:02}.{milliseconds:03}s")
 
     def time_block(self, message: str):
         """

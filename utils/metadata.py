@@ -2,7 +2,7 @@
 Module: metadata.py
 
 Purpose:
-    Defines the SessionData class for managing per-session metadata and paths.
+    Defines the SessionMetadata class for managing per-session metadata and paths.
 """
 
 import pickle
@@ -13,7 +13,7 @@ from utils.logger import logger
 from utils.config import NC4_DATA_PATH
 
 
-class SessionData:
+class SessionMetadata:
     """
     Represents a single data collection session.
     Manages all paths and metadata related to raw and processed files.
@@ -21,7 +21,7 @@ class SessionData:
 
     def __init__(self, rat_id: str, session_name: str):
         """
-        Initialize a SessionData object with resolved paths and empty metadata.
+        Initialize a SessionMetadata object with resolved paths and empty metadata.
 
         Parameters:
             rat_id (str): Unique animal identifier.
@@ -40,7 +40,7 @@ class SessionData:
         self.trodesconf_path = self.session_dir / "raw" / "Trodes" / f"{session_name}_merged.trodesconf"
 
         # Output metadata file
-        self.session_pkl_path = self.extracted_dir / "session_data.pkl"
+        self.session_pkl_path = self.extracted_dir / "session_metadata.pkl"
 
         # Standard export folders
         self.export_paths = {
@@ -55,54 +55,54 @@ class SessionData:
 
         # Ensure extracted folder exists immediately
         self.extracted_dir.mkdir(parents=True, exist_ok=True)
-        logger.log(f"SessionData initialized: {self.session_dir}")
+        logger.log(f"SessionMetadata initialized: {self.session_dir}")
 
     def save(self) -> None:
         """
-        Save the current session object to the extracted/session_data.pkl.
+        Save the current session object to the extracted/session_metadata.pkl.
         """
         with open(self.session_pkl_path, "wb") as f:
             pickle.dump(self, f)
-        logger.log(f"SessionData metadata saved to: {self.session_pkl_path}")
+        logger.log(f"SessionMetadata metadata saved to: {self.session_pkl_path}")
 
     @staticmethod
-    def load(session_dir: Path) -> "SessionData":
+    def load(session_dir: Path) -> "SessionMetadata":
         """
-        Load a session object from the session_dir/extracted/session_data.pkl file.
+        Load a session object from the session_dir/extracted/session_metadata.pkl file.
 
         Parameters:
             session_dir (Path): Full path to session directory.
 
         Returns:
-            SessionData: Loaded session object.
+            SessionMetadata: Loaded session object.
         """
-        pkl_path = session_dir / "extracted" / "session_data.pkl"
+        pkl_path = session_dir / "extracted" / "session_metadata.pkl"
         with open(pkl_path, "rb") as f:
             session = pickle.load(f)
-        logger.log(f"SessionData metadata loaded from: {pkl_path}")
+        logger.log(f"SessionMetadata metadata loaded from: {pkl_path}")
         return session
 
     @staticmethod
-    def from_dir(session_dir: Path) -> "SessionData":
+    def from_dir(session_dir: Path) -> "SessionMetadata":
         """
-        Construct a SessionData object from a full path like .../<rat_id>/<session_name>
+        Construct a SessionMetadata object from a full path like .../<rat_id>/<session_name>
 
         Parameters:
             session_dir (Path): Full session directory path.
 
         Returns:
-            SessionData: A new SessionData instance.
+            SessionMetadata: A new SessionMetadata instance.
         """
         rat_id = session_dir.parts[-2]
         session_name = session_dir.parts[-1]
-        return SessionData(rat_id, session_name)
+        return SessionMetadata(rat_id, session_name)
 
     def to_dict(self) -> dict:
         """
         Return a dictionary representation of key session metadata.
 
         Returns:
-            dict: SessionData details including paths and core fields.
+            dict: SessionMetadata details including paths and core fields.
         """
         return {
             "rat_id": self.rat_id,
@@ -118,7 +118,7 @@ class SessionData:
             "export_paths": {k: str(v) for k, v in self.export_paths.items()},
         }
 
-class ChannelData:
+class EphysMetadata:
     """
     Loads and filters channel metadata from a session-specific CSV.
     """
@@ -128,10 +128,10 @@ class ChannelData:
         Initialize and optionally filter to only included channels.
 
         Parameters:
-            session (SessionData): A loaded SessionData object.
+            session (SessionMetadata): A loaded SessionMetadata object.
             include_only (bool): If True, apply 'exclude == False' filter by default.
         """
-        self.csv_path = session.extracted_dir / f"{session.session_name}_channel_metadata.csv"
+        self.csv_path = session.extracted_dir / "channel_data.csv"
 
         if not self.csv_path.exists():
             raise FileNotFoundError(f"Channel metadata CSV not found at {self.csv_path}")

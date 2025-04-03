@@ -10,21 +10,21 @@ from spikeinterface import write_binary_recording
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
-from utils.metadata import SessionData
+from utils.metadata import SessionMetadata
 from utils.logger import logger
 
 
-def parse_trodesconf(session: SessionData) -> None:
+def parse_trodesconf(session_metadata: SessionMetadata) -> None:
     """
     Populate the session object with analog CSC channel indices based on the .trodesconf file.
 
     Parameters:
-        session (SessionData): The session to update.
+        session (SessionMetadata): The session to update.
     """
     from utils.logger import logger
 
     with logger.time_block("Parsing Trodesconf"):
-        tree = ET.parse(session.trodesconf_path)
+        tree = ET.parse(session_metadata.trodesconf_path)
         root = tree.getroot()
 
         csc_channels = []
@@ -34,29 +34,29 @@ def parse_trodesconf(session: SessionData) -> None:
             if ch.attrib.get("dataType", "").lower() == "analog":
                 csc_channels.append(i)
 
-        session.exported_csc_channels = csc_channels
+        session_metadata.exported_csc_channels = csc_channels
 
         # Attempt to get sampling rate
         srate_node = root.find(".//HardwareConfiguration/SampleRate")
         if srate_node is not None and srate_node.text:
-            session.sampling_rate_hz = float(srate_node.text)
+            session_metadata.sampling_rate_hz = float(srate_node.text)
 
-def export_csc_to_si_binary(session: SessionData) -> None:
+def export_csc_to_binary(session_metadata: SessionMetadata) -> None:
     """
     Export selected CSC channels from a .rec file to SI-compatible binary format.
 
     Parameters:
-        session (SessionData): Active session object with populated metadata.
+        session (SessionMetadata): Active session object with populated metadata.
     """
     with logger.time_block("Exporting CSC to binary"):
-        output_dir = session.export_paths["csc"]
+        output_dir = session_metadata.export_paths["csc"]
 
         logger.log("Reading .rec file using SpikeInterface")
-        recording = read_spikegadgets(session.rec_path)
+        recording = read_spikegadgets(session_metadata.rec_path)
 
-        csc_channels = session.exported_csc_channels
+        csc_channels = session_metadata.exported_csc_channels
         if not csc_channels:
-            raise ValueError("No CSC channels defined in session.")
+            raise ValueError("No CSC channels defined in session_metadata.")
 
         logger.log(f"Filtering for {len(csc_channels)} CSC channels")
         filtered = recording.channel_slice(channel_ids=csc_channels)
@@ -71,22 +71,22 @@ def export_csc_to_si_binary(session: SessionData) -> None:
         )
 
 
-def load_csc_binary_recording(session: SessionData) -> BinaryRecordingExtractor:
+def load_csc_binary(session_metadata: SessionMetadata) -> BinaryRecordingExtractor:
     """
     Load a previously exported CSC binary recording using session metadata.
 
     Parameters:
-        session (SessionData): Loaded session object.
+        session (SessionMetadata): Loaded session object.
 
     Returns:
         BinaryRecordingExtractor: SpikeInterface-compatible object.
     """
-    dat_path = session.export_paths["csc"] / "csc_interleaved.dat"
+    dat_path = session_metadata.export_paths["csc"] / "csc_interleaved.dat"
     logger.log(f"Loading CSC binary recording from: {dat_path}")
     return BinaryRecordingExtractor(
         dat_path,
-        sampling_frequency=session.sampling_rate_hz,
-        num_channels=len(session.exported_csc_channels),
+        sampling_frequency=session_metadata.sampling_rate_hz,
+        num_channels=len(session_metadata.exported_csc_channels),
         dtype="int16",
         time_axis=1
     )

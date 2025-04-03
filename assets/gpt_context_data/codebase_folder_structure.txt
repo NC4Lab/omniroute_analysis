@@ -13,12 +13,13 @@ omniroute_analysis/
 │       └── preprocessing.ipynb
 ├── omniroute_analysis_env.yml
 ├── testing
-│   ├── print_tree.py
 │   └── test_setup_1.py
+│   └── test_setup_x.py
 ├── utils
     ├── config.py
     ├── path.py
     ├── metadata.py
+    ├── logger.py
     ├── io_binary.py
     ├── io_rosbag.py
     ├── io_trodes.py
