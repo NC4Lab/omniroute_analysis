@@ -20,7 +20,6 @@ omniroute_analysis/
     ├── path.py
     ├── metadata.py
     ├── logger.py
-    ├── io_binary.py
     ├── io_rosbag.py
     ├── io_trodes.py
     └── io_ts_sync.py

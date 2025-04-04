@@ -23,11 +23,6 @@ experiment_x/                            # Top-level project directory
     │       │   ├── unit2.dat
     │       │   └── ...
     │
-    │       ├── csc/                      # Continuous sampled channel data  [likely will not use this]
-    │       │   ├── csc1.dat
-    │       │   ├── csc2.dat
-    │       │   └── ...
-    │
     │       └── ...                       # Additional derived arrays, timestamps, sync files
     │
     └── ...                               # Other session folders for this rat

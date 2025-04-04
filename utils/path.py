@@ -27,3 +27,15 @@ def get_rec_path(rat_id: str, session_name: str) -> Path:
         "Trodes" /
         f"{session_name}_merged.rec"
     )
+
+def get_rat_path(rat_id: str) -> Path:
+    """
+    Construct path to a rat-level directory based on rat ID.
+
+    Parameters:
+        rat_id (str): Unique animal identifier (e.g., 'NC40008')
+
+    Returns:
+        Path: Full path to the rat folder.
+    """
+    return Path(NC4_DATA_PATH) / rat_id

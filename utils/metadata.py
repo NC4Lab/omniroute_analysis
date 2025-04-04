@@ -2,154 +2,124 @@
 Module: metadata.py
 
 Purpose:
-    Defines the SessionMetadata class for managing per-session metadata and paths.
+    Metadata structures for handling session-level and electrophysiological context.
 """
 
 import pickle
+from typing import Any, Literal
+
+import numpy as np
 import pandas as pd
 from pathlib import Path
-from datetime import datetime
-from utils.logger import logger
-from utils.config import NC4_DATA_PATH
+
+from utils.path import get_rec_path, get_rat_path
+from utils.io_trodes import load_sample_rate_from_rec
 
 
 class SessionMetadata:
     """
-    Represents a single data collection session.
-    Manages all paths and metadata related to raw and processed files.
+    Holds session-level context and paths used across the pipeline.
+
+    Parameters:
+        rat_id (str): Unique identifier for the rat (e.g., "NC40008").
+        session_name (str): Timestamped session name (e.g., "20250328_134136").
     """
 
     def __init__(self, rat_id: str, session_name: str):
-        """
-        Initialize a SessionMetadata object with resolved paths and empty metadata.
-
-        Parameters:
-            rat_id (str): Unique animal identifier.
-            session_name (str): Timestamped session name.
-        """
         self.rat_id = rat_id
         self.session_name = session_name
-        self.timestamp_created = datetime.now().isoformat()
 
-        # Core directories
-        self.session_dir = Path(NC4_DATA_PATH) / self.rat_id / self.session_name
-        self.extracted_dir = self.session_dir / "extracted"
+        self.rat_path = get_rat_path(rat_id)
+        self.rec_path = get_rec_path(rat_id, session_name)
 
-        # Input files
-        self.rec_path = self.session_dir / "raw" / "Trodes" / f"{session_name}_merged.rec"
-        self.trodesconf_path = self.session_dir / "raw" / "Trodes" / f"{session_name}_merged.trodesconf"
+        self.session_type: Literal["ephys", "behaviour"] = (
+            "ephys" if self.rec_path.exists() else "behaviour"
+        )
 
-        # Output metadata file
-        self.session_pkl_path = self.extracted_dir / "session_metadata.pkl"
-
-        # Standard export folders
-        self.export_paths = {
-            "csc": self.extracted_dir / f"{session_name}_merged.csc",
-            "spikes": self.extracted_dir / f"{session_name}_merged.spikes",
-            "dio": self.extracted_dir / f"{session_name}_merged.dio",
-        }
-
-        # Metadata fields
-        self.exported_csc_channels: list[int] = []
-        self.sampling_rate_hz: float | None = None
-
-        # Ensure extracted folder exists immediately
+        self.extracted_dir = self.rat_path / session_name / "extracted"
         self.extracted_dir.mkdir(parents=True, exist_ok=True)
-        logger.log(f"SessionMetadata initialized: {self.session_dir}")
+
+        self.custom_fields: dict[str, Any] = {}
+
+    def set_custom_field(self, key: str, value: Any) -> None:
+        self.custom_fields[key] = value
 
     def save(self) -> None:
-        """
-        Save the current session object to the extracted/session_metadata.pkl.
-        """
-        with open(self.session_pkl_path, "wb") as f:
+        out_path = self.extracted_dir / "session_metadata.pkl"
+        with open(out_path, "wb") as f:
             pickle.dump(self, f)
-        logger.log(f"SessionMetadata metadata saved to: {self.session_pkl_path}")
 
     @staticmethod
-    def load(session_dir: Path) -> "SessionMetadata":
-        """
-        Load a session object from the session_dir/extracted/session_metadata.pkl file.
+    def load(rat_id: str, session_name: str) -> "SessionMetadata":
+        rat_path = get_rat_path(rat_id)
+        extracted_dir = rat_path / session_name / "extracted"
+        in_path = extracted_dir / "session_metadata.pkl"
+        with open(in_path, "rb") as f:
+            return pickle.load(f)
 
-        Parameters:
-            session_dir (Path): Full path to session directory.
-
-        Returns:
-            SessionMetadata: Loaded session object.
-        """
-        pkl_path = session_dir / "extracted" / "session_metadata.pkl"
-        with open(pkl_path, "rb") as f:
-            session = pickle.load(f)
-        logger.log(f"SessionMetadata metadata loaded from: {pkl_path}")
-        return session
-
-    @staticmethod
-    def from_dir(session_dir: Path) -> "SessionMetadata":
-        """
-        Construct a SessionMetadata object from a full path like .../<rat_id>/<session_name>
-
-        Parameters:
-            session_dir (Path): Full session directory path.
-
-        Returns:
-            SessionMetadata: A new SessionMetadata instance.
-        """
-        rat_id = session_dir.parts[-2]
-        session_name = session_dir.parts[-1]
-        return SessionMetadata(rat_id, session_name)
-
-    def to_dict(self) -> dict:
-        """
-        Return a dictionary representation of key session metadata.
-
-        Returns:
-            dict: SessionMetadata details including paths and core fields.
-        """
-        return {
-            "rat_id": self.rat_id,
-            "session_name": self.session_name,
-            "timestamp_created": self.timestamp_created,
-            "session_dir": str(self.session_dir),
-            "extracted_dir": str(self.extracted_dir),
-            "rec_path": str(self.rec_path),
-            "trodesconf_path": str(self.trodesconf_path),
-            "session_pkl_path": str(self.session_pkl_path),
-            "exported_csc_channels": self.exported_csc_channels,
-            "sampling_rate_hz": self.sampling_rate_hz,
-            "export_paths": {k: str(v) for k, v in self.export_paths.items()},
-        }
 
 class EphysMetadata:
     """
-    Loads and filters channel metadata from a session-specific CSV.
+    Holds electrophysiological channel metadata and maps available vs. active channels.
+
+    Parameters:
+        rec_path (Path): Path to the SpikeGadgets .rec file.
+        channel_map_path (Path): Path to the channel metadata CSV.
+        save_path (Path): Path to save the EphysMetadata pickle file.
     """
 
-    def __init__(self, session, include_only: bool = True):
+    def __init__(self, rec_path: Path, channel_map_path: Path, save_path: Path):
+        self.rec_path = rec_path
+        self.channel_map_path = channel_map_path
+        self.save_path = save_path
+
+        self.trodes_id: list[int] = []                 # Full list from CSV
+        self.headstage_hardware_id: list[int] = []     # Parallel list to trodes_id
+        self.trodes_id_include: list[int] = []         # Dynamic mask for analysis
+
+        self.sampling_rate_hz = load_sample_rate_from_rec(self.rec_path)
+        self.processed_csc_data: dict[str, Any] = {}
+        self.timestamp_mapping: dict[str, Any] | None = None
+
+        self._load_channel_map()
+
+    def _load_channel_map(self) -> None:
+        if not self.channel_map_path.exists():
+            raise FileNotFoundError(f"Channel map not found: {self.channel_map_path}")
+
+        df = pd.read_csv(self.channel_map_path)
+        filtered = df[df["exclude"] == False]
+
+        self.trodes_id = filtered["trodes_id"].tolist()
+        self.headstage_hardware_id = filtered["headstage_hardware_id"].tolist()
+        self.trodes_id_include = self.trodes_id.copy()
+
+    def trodes_to_headstage_ids(self, ids: list[int]) -> list[str]:
         """
-        Initialize and optionally filter to only included channels.
+        Convert a list of trodes_id values to headstage_hardware_id strings.
 
         Parameters:
-            session (SessionMetadata): A loaded SessionMetadata object.
-            include_only (bool): If True, apply 'exclude == False' filter by default.
+            ids (list[int]): Subset of trodes_id to convert.
+
+        Returns:
+            list[str]: Corresponding headstage_hardware_id values as strings.
         """
-        self.csv_path = session.extracted_dir / "channel_data.csv"
+        mapping = {tid: str(hid) for tid, hid in zip(self.trodes_id, self.headstage_hardware_id)}
+        try:
+            return [mapping[tid] for tid in ids]
+        except KeyError as e:
+            raise ValueError(f"Invalid trodes_id: {e.args[0]} not found in known mapping.")
 
-        if not self.csv_path.exists():
-            raise FileNotFoundError(f"Channel metadata CSV not found at {self.csv_path}")
+    def add_empty_processed_array(self, name: str, csc_dataset: np.ndarray) -> None:
+        self.processed_csc_data[name] = csc_dataset
 
-        self.df = pd.read_csv(self.csv_path)
-        if include_only:
-            self.df = self.df[self.df["exclude"] == False]
+    def save(self) -> None:
+        with open(self.save_path, "wb") as f:
+            pickle.dump(self, f)
 
-    def filter(self, **criteria) -> list[int]:
-        """
-        Return list of channel_ids matching all specified filters.
+    @staticmethod
+    def load(pickle_path: Path) -> "EphysMetadata":
+        with open(pickle_path, "rb") as f:
+            return pickle.load(f)
 
-        Example:
-            filter(region="CA1", quality="good")
-        """
-        df_filtered = self.df.copy()
-        for key, value in criteria.items():
-            if key not in df_filtered.columns:
-                raise ValueError(f"Column '{key}' not found in channel metadata.")
-            df_filtered = df_filtered[df_filtered[key] == value]
-        return df_filtered["channel_id"].tolist()
+
