@@ -19,69 +19,93 @@ from utils.io_trodes import load_sample_rate_from_rec
 class SessionMetadata:
     """
     Holds session-level context and paths used across the pipeline.
-
-    Parameters:
-        rat_id (str): Unique identifier for the rat (e.g., "NC40008").
-        session_name (str): Timestamped session name (e.g., "20250328_134136").
+    Use `load_extract_data(rat_id, session_name)` to populate after init.
     """
 
-    def __init__(self, rat_id: str, session_name: str):
+    def __init__(self):
+        self.rat_id: str = ""
+        self.session_name: str = ""
+
+        self.rat_path: Path | None = None
+        self.rec_path: Path | None = None
+        self.extracted_dir: Path | None = None
+
+        self.session_type: Literal["ephys", "behaviour"] | None = None
+        self.custom_fields: dict[str, Any] = {}
+
+    def load_extract_data(self, rat_id: str, session_name: str) -> None:
+        """
+        Load this SessionMetadata instance from disk if a saved pickle exists.
+        Otherwise, populate its fields based on the session folder structure.
+
+        Parameters:
+            rat_id (str): Animal ID (e.g., "NC40008")
+            session_name (str): Timestamped session name (e.g., "20250328_134136")
+        """
         self.rat_id = rat_id
         self.session_name = session_name
 
         self.rat_path = get_rat_path(rat_id)
         self.rec_path = get_rec_path(rat_id, session_name)
-
-        self.session_type: Literal["ephys", "behaviour"] = (
-            "ephys" if self.rec_path.exists() else "behaviour"
-        )
-
         self.extracted_dir = self.rat_path / session_name / "extracted"
-        self.extracted_dir.mkdir(parents=True, exist_ok=True)
 
-        self.custom_fields: dict[str, Any] = {}
+        pickle_path = self.extracted_dir / "session_metadata.pkl"
+
+        if pickle_path.exists():
+            with open(pickle_path, "rb") as f:
+                loaded: SessionMetadata = pickle.load(f)
+            self.__dict__.update(loaded.__dict__)
+        else:
+            self.session_type = "ephys" if self.rec_path.exists() else "behaviour"
+            self.extracted_dir.mkdir(parents=True, exist_ok=True)
 
     def set_custom_field(self, key: str, value: Any) -> None:
         self.custom_fields[key] = value
 
     def save(self) -> None:
+        if not self.extracted_dir:
+            raise ValueError("Cannot save without calling load_extract_data first.")
         out_path = self.extracted_dir / "session_metadata.pkl"
         with open(out_path, "wb") as f:
             pickle.dump(self, f)
-
-    @staticmethod
-    def load(rat_id: str, session_name: str) -> "SessionMetadata":
-        rat_path = get_rat_path(rat_id)
-        extracted_dir = rat_path / session_name / "extracted"
-        in_path = extracted_dir / "session_metadata.pkl"
-        with open(in_path, "rb") as f:
-            return pickle.load(f)
 
 
 class EphysMetadata:
     """
     Holds electrophysiological channel metadata and maps available vs. active channels.
-
-    Parameters:
-        rec_path (Path): Path to the SpikeGadgets .rec file.
-        channel_map_path (Path): Path to the channel metadata CSV.
-        save_path (Path): Path to save the EphysMetadata pickle file.
+    Use `load_extract_data(rec_path, channel_map_path, save_path)` to populate after init.
     """
 
-    def __init__(self, rec_path: Path, channel_map_path: Path, save_path: Path):
+    def __init__(self):
+        self.rec_path: Path | None = None
+        self.channel_map_path: Path | None = None
+        self.save_path: Path | None = None
+
+        self.trodes_id: list[int] = []
+        self.headstage_hardware_id: list[int] = []
+        self.trodes_id_include: list[int] = []
+
+        self.sampling_rate_hz: float | None = None
+        self.processed_csc_data: dict[str, Any] = {}
+        self.timestamp_mapping: dict[str, Any] | None = None
+
+    def load_extract_data(
+        self, rec_path: Path, channel_map_path: Path, save_path: Path
+    ) -> None:
+        """
+        Load from disk if a pickle exists; otherwise populate fields from inputs.
+        """
         self.rec_path = rec_path
         self.channel_map_path = channel_map_path
         self.save_path = save_path
 
-        self.trodes_id: list[int] = []                 # Full list from CSV
-        self.headstage_hardware_id: list[int] = []     # Parallel list to trodes_id
-        self.trodes_id_include: list[int] = []         # Dynamic mask for analysis
-
-        self.sampling_rate_hz = load_sample_rate_from_rec(self.rec_path)
-        self.processed_csc_data: dict[str, Any] = {}
-        self.timestamp_mapping: dict[str, Any] | None = None
-
-        self._load_channel_map()
+        if save_path.exists():
+            with open(save_path, "rb") as f:
+                loaded: EphysMetadata = pickle.load(f)
+            self.__dict__.update(loaded.__dict__)
+        else:
+            self.sampling_rate_hz = load_sample_rate_from_rec(self.rec_path)
+            self._load_channel_map()
 
     def _load_channel_map(self) -> None:
         if not self.channel_map_path.exists():
@@ -114,12 +138,10 @@ class EphysMetadata:
         self.processed_csc_data[name] = csc_dataset
 
     def save(self) -> None:
+        if not self.save_path:
+            raise ValueError("Cannot save without calling load_extract_data first.")
         with open(self.save_path, "wb") as f:
             pickle.dump(self, f)
 
-    @staticmethod
-    def load(pickle_path: Path) -> "EphysMetadata":
-        with open(pickle_path, "rb") as f:
-            return pickle.load(f)
 
 
