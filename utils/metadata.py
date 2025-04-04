@@ -11,6 +11,7 @@ from typing import Any, Literal
 import numpy as np
 import pandas as pd
 from pathlib import Path
+from types import SimpleNamespace
 
 from utils.path import get_rec_path, get_rat_path
 from utils.io_trodes import load_sample_rate_from_rec
@@ -31,16 +32,13 @@ class SessionMetadata:
         self.extracted_dir: Path | None = None
 
         self.session_type: Literal["ephys", "behaviour"] | None = None
-        self.custom_fields: dict[str, Any] = {}
+
+        self.custom = None
 
     def load_extract_data(self, rat_id: str, session_name: str) -> None:
         """
         Load this SessionMetadata instance from disk if a saved pickle exists.
         Otherwise, populate its fields based on the session folder structure.
-
-        Parameters:
-            rat_id (str): Animal ID (e.g., "NC40008")
-            session_name (str): Timestamped session name (e.g., "20250328_134136")
         """
         self.rat_id = rat_id
         self.session_name = session_name
@@ -55,12 +53,17 @@ class SessionMetadata:
             with open(pickle_path, "rb") as f:
                 loaded: SessionMetadata = pickle.load(f)
             self.__dict__.update(loaded.__dict__)
+
+            # ✅ Ensure custom field exists
+            if not hasattr(self, "custom") or self.custom is None:
+                self.custom = SimpleNamespace()
         else:
             self.session_type = "ephys" if self.rec_path.exists() else "behaviour"
             self.extracted_dir.mkdir(parents=True, exist_ok=True)
+            self.custom = SimpleNamespace()
 
     def set_custom_field(self, key: str, value: Any) -> None:
-        self.custom_fields[key] = value
+        setattr(self.custom, key, value)
 
     def save(self) -> None:
         if not self.extracted_dir:
@@ -89,6 +92,8 @@ class EphysMetadata:
         self.processed_csc_data: dict[str, Any] = {}
         self.timestamp_mapping: dict[str, Any] | None = None
 
+        self.custom = None
+
     def load_extract_data(
         self, rec_path: Path, channel_map_path: Path, save_path: Path
     ) -> None:
@@ -103,9 +108,14 @@ class EphysMetadata:
             with open(save_path, "rb") as f:
                 loaded: EphysMetadata = pickle.load(f)
             self.__dict__.update(loaded.__dict__)
+
+            # ✅ Ensure custom field exists
+            if not hasattr(self, "custom") or self.custom is None:
+                self.custom = SimpleNamespace()
         else:
             self.sampling_rate_hz = load_sample_rate_from_rec(self.rec_path)
             self._load_channel_map()
+            self.custom = SimpleNamespace()
 
     def _load_channel_map(self) -> None:
         if not self.channel_map_path.exists():
@@ -136,6 +146,9 @@ class EphysMetadata:
 
     def add_empty_processed_array(self, name: str, csc_dataset: np.ndarray) -> None:
         self.processed_csc_data[name] = csc_dataset
+
+    def set_custom_field(self, key: str, value: Any) -> None:
+        setattr(self.custom, key, value)
 
     def save(self) -> None:
         if not self.save_path:
