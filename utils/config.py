@@ -13,8 +13,8 @@ from pathlib import Path
 env_path = Path(__file__).resolve().parents[1] / ".env"
 load_dotenv(dotenv_path=env_path)
 
-TRODES_PATH = os.getenv("TRODES_PATH")
-NC4_DATA_PATH = os.getenv("NC4_DATA_PATH")
+TRODES_DIR = os.getenv("TRODES_DIR")
+NC4_DATA_DIR = os.getenv("NC4_DATA_DIR")
 
-if not TRODES_PATH or not NC4_DATA_PATH:
-    raise EnvironmentError("TRODES_PATH and NC4_DATA_PATH must be set in the .env file.")
+if not TRODES_DIR or not NC4_DATA_DIR:
+    raise EnvironmentError("TRODES_DIR and NC4_DATA_DIR must be set in the .env file.")

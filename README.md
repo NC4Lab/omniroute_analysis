@@ -20,14 +20,14 @@ conda activate omniroute_analysis_env
 
 Create a `.env` file in the repo root with the following variables:
 ```
-TRODES_PATH=
-NC4_DATA_PATH=
+TRODES_DIR=
+NC4_DATA_DIR=
 ```
 
 For example (using double backslashes on Windows paths):
 ```
-TRODES_PATH=C:\\Users\\lester\\MeDocuments\\Research\\MadhavLab\\Projects\\SpikeGadgets\\Trodes_2-3-4_Windows64\\Trodes.exe
-NC4_DATA_PATH=C:\\Users\\lester\\UBC\\Madhav, Manu - lesterkaur2024gate\\analysis\\gate_ephys_test\\data
+TRODES_DIR=C:\\Users\\lester\\MeDocuments\\Research\\MadhavLab\\Projects\\SpikeGadgets\\Trodes_2-3-4_Windows64\\Trodes.exe
+NC4_DATA_DIR=C:\\Users\\lester\\UBC\\Madhav, Manu - lesterkaur2024gate\\analysis\\gate_ephys_test\\data
 ```
 
 ## SpikeInterface Setup

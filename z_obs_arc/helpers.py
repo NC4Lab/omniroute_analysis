@@ -123,7 +123,7 @@ class Session:
                 
         else:   ## Both anim and date are provided, folder is assumed to be data folder
             if folder=='':      ## Data path not provided
-                folder = os.environ['NC4_DATA_PATH']
+                folder = os.environ['NC4_DATA_DIR']
             
             if not os.path.isdir(folder):
                 logger.error("Session Folder does not exist")

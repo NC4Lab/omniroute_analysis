@@ -6,9 +6,14 @@ Purpose:
 """
 
 from pathlib import Path
+import os
+import numpy as np
+import subprocess
 import spikeinterface.extractors as se
 from utils.logger import logger
+from utils.binary_utils import TrodesDIOBinaryLoader
 
+TRODES_DIR = Path(os.getenv("TRODES_DIR"))
 
 def load_sample_rate_from_rec(rec_path: Path) -> None:
     """
@@ -33,3 +38,57 @@ def load_csc_from_rec(rec_path: Path, trodes_id_include: list[int]) -> None:
     with logger.time_block("Loading CSC data from .rec file"):
         rec = se.read_spikegadgets(rec_path)
         return rec.channel_slice(channel_ids=trodes_id_include)
+
+def extract_dio_from_rec(rec_path: Path, dio_dir: Path, overwrite: bool = False) -> None:
+    """
+    Extract DIO channels from a .rec file using the SpikeGadgets exportdio tool.
+
+    Parameters:
+        rec_path (Path): Path to the .rec file.
+        dio_dir (Path): Destination directory to save DIO files.
+        overwrite (bool): If True, overwrite existing files. Default is False.
+    """
+    if dio_dir.exists() and not overwrite:
+        logger.log(f"DIO already extracted at {dio_dir}")
+        return
+    
+    exportdio_exe_path = TRODES_DIR / "exportdio.exe"
+    cmd = [
+        str(exportdio_exe_path),
+        "-rec", str(rec_path),
+        "-outputdirectory", str(dio_dir.parent),
+        "-output", dio_dir.stem,  # removes .DIO suffix
+    ]
+
+    with logger.time_block("Extracting DIO using exportdio"):
+        result = subprocess.run(cmd, capture_output=True, text=True)
+
+    logger.log(f"exportdio stdout:\n{result.stdout}")
+    if result.stderr:
+        logger.log(f"exportdio stderr:\n{result.stderr}")
+
+def load_dio_binary(dio_dir: Path, channel: int) -> np.ndarray:
+    """
+    Load a binary DIO trace from a specific channel using TrodesDIOBinaryLoader.
+
+    Parameters:
+        dio_dir (Path): Path to the extracted DIO directory.
+        channel (int): Channel number to load (e.g., 1 for Din1).
+
+    Returns:
+        np.ndarray: 1D array of 0/1 values.
+    """
+    # Look for a file ending in Din{channel}.dat
+    pattern = f"Din{channel}.dat"
+
+    matched_file = None
+    for file in dio_dir.iterdir():
+        if file.name.endswith(pattern):
+            matched_file = file
+            break
+
+    if matched_file is None:
+        raise FileNotFoundError(f"No Din{channel}.dat file found in {dio_dir}")
+
+    with logger.time_block(f"Loading DIO channel {channel}"):
+        return TrodesDIOBinaryLoader(matched_file)

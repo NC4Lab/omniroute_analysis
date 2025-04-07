@@ -36,7 +36,7 @@ from spikeinterface import write_binary_recording
 
 from utils.logger import logger
 from utils.metadata import SessionMetadata
-from utils.config import NC4_DATA_PATH
+from utils.config import NC4_DATA_DIR
 
 RAT_ID = "NC40008"
 SESSION_NAME = "20250328_134136"
@@ -59,7 +59,7 @@ def process_csc_data(recording):
     return r, duration
 
 def get_rec_path():
-    #return Path(NC4_DATA_PATH) / RAT_ID / SESSION_NAME / "raw" / "Trodes" / f"{SESSION_NAME}_merged.rec"
+    #return Path(NC4_DATA_DIR) / RAT_ID / SESSION_NAME / "raw" / "Trodes" / f"{SESSION_NAME}_merged.rec"
     return Path(r"Z:\NC40014\240209_training\raw\Trodes\240209_merged.rec")
 
 

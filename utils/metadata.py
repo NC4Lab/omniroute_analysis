@@ -21,6 +21,8 @@ from utils.path import (
     get_extracted_dir,
     get_session_metadata_path,
     get_ephys_metadata_path,
+    get_dio_dir,
+    get_spike_dir,
 )
 
 
@@ -47,7 +49,6 @@ class BaseMetadata(ABC):
             if not hasattr(self, "custom") or self.custom is None:
                 self.custom = SimpleNamespace()
         else:
-            get_extracted_dir(self.rat_id, self.session_name).mkdir(parents=True, exist_ok=True)
             self.custom = SimpleNamespace()
             self.post_initialize()
 
@@ -90,14 +91,20 @@ class SessionMetadata(BaseMetadata):
         self.rat_path: Path | None = None
         self.rec_path: Path | None = None
         self.extracted_dir: Path | None = None
+        self.dio_dir: Path | None = None
+        self.spike_dir: Path | None = None
         self.session_type: Literal["ephys", "behaviour"] | None = None
 
     def post_initialize(self) -> None:
         self.rat_path = get_rat_path(self.rat_id)
         self.rec_path = get_rec_path(self.rat_id, self.session_name)
         self.extracted_dir = get_extracted_dir(self.rat_id, self.session_name)
+        self.dio_dir = get_dio_dir(self.rat_id, self.session_name)
+        self.spike_dir = get_spike_dir(self.rat_id, self.session_name)
 
         self.session_type = "ephys" if self.rec_path.exists() else "behaviour"
+
+        self.extracted_dir.mkdir(parents=True, exist_ok=True)
 
     def _get_pickle_path(self) -> Path:
         return get_session_metadata_path(self.rat_id, self.session_name)
