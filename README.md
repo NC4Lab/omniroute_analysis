@@ -37,6 +37,10 @@ Install `spikeinterface` and related tools using pip:
 pip install spikeinterface[full] python-dotenv
 ```
 
+## Trodes Setup
+Download and install the `Trodes` software suite from the SpikeGadgets website:
+https://www.spikegadgets.com/trodes
+
 ## TO DO
 - Update .yml to remove unused
 - Update .yml to include SpikeInterface
