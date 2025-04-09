@@ -13,6 +13,7 @@ from types import SimpleNamespace
 from typing import Any, Literal
 from abc import ABC, abstractmethod
 
+from utils import config as _config
 from utils.io_trodes import load_sample_rate_from_rec
 from utils.path import (
     get_rec_path,
@@ -24,7 +25,6 @@ from utils.path import (
     get_dio_dir,
     get_spike_dir,
 )
-
 
 class BaseMetadata(ABC):
     """

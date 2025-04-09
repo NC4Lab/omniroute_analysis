@@ -11,7 +11,10 @@ from pathlib import Path
 
 # Load .env file explicitly from project root to ensure compatibility across modules
 env_path = Path(__file__).resolve().parents[1] / ".env"
-load_dotenv(dotenv_path=env_path)
+if env_path.exists():
+    load_dotenv(dotenv_path=env_path)
+else:
+    raise FileNotFoundError(f".env file not found at: {env_path}")
 
 TRODES_DIR = os.getenv("TRODES_DIR")
 NC4_DATA_DIR = os.getenv("NC4_DATA_DIR")

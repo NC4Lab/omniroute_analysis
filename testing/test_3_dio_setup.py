@@ -9,7 +9,7 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 import numpy as np  # Required for validation
 
-from utils.logger import logger
+from utils.omni_anal_logger import logger
 from utils.path import get_rec_path, get_dio_dir
 from utils.io_trodes import extract_dio_from_rec, load_dio_binary
 from utils.metadata import SessionMetadata, EphysMetadata

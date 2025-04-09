@@ -10,10 +10,11 @@ import os
 import numpy as np
 import subprocess
 import spikeinterface.extractors as se
-from utils.logger import logger
-from utils.binary_utils import TrodesDIOBinaryLoader
 
-TRODES_DIR = Path(os.getenv("TRODES_DIR"))
+
+from utils.omni_anal_logger import logger
+from utils.binary_utils import TrodesDIOBinaryLoader
+from utils.config import TRODES_DIR
 
 def load_sample_rate_from_rec(rec_path: Path) -> None:
     """

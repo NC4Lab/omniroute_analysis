@@ -9,7 +9,7 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from utils.metadata import SessionMetadata, EphysMetadata
 from utils.io_trodes import load_csc_from_rec
-from utils.logger import logger
+from utils.omni_anal_logger import logger
 
 # --- Test parameters ---
 rat_id = "NC40008"

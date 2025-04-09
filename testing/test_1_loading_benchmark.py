@@ -34,7 +34,7 @@ from spikeinterface.preprocessing import bandpass_filter, common_reference, norm
 from spikeinterface.extractors import read_spikegadgets, BinaryRecordingExtractor, NumpyRecording
 from spikeinterface import write_binary_recording
 
-from utils.logger import logger
+from utils.omni_anal_logger import logger
 from utils.metadata import SessionMetadata
 from utils.config import NC4_DATA_DIR
 
