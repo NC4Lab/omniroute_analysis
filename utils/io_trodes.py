@@ -52,8 +52,11 @@ def extract_dio_from_rec(rec_path: Path, dio_dir: Path, overwrite: bool = False)
     if dio_dir.exists() and not overwrite:
         omni_anal_logger.info(f"DIO already extracted at {dio_dir}")
         return
-    
+
     exportdio_exe_path = Path(TRODES_DIR) / "exportdio.exe"
+    if not exportdio_exe_path.exists():
+        raise FileNotFoundError(f"exportdio.exe not found at {exportdio_exe_path}")
+
     cmd = [
         str(exportdio_exe_path),
         "-rec", str(rec_path),
@@ -67,6 +70,13 @@ def extract_dio_from_rec(rec_path: Path, dio_dir: Path, overwrite: bool = False)
     omni_anal_logger.info(f"exportdio stdout:\n{result.stdout}")
     if result.stderr:
         omni_anal_logger.info(f"exportdio stderr:\n{result.stderr}")
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"exportdio.exe failed with return code {result.returncode}.\n"
+            f"Command: {' '.join(cmd)}\n"
+            f"Stderr:\n{result.stderr}"
+        )
 
 def load_dio_binary(dio_dir: Path, channel: int) -> np.ndarray:
     """

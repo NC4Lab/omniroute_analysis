@@ -2,11 +2,14 @@
 Module: omni_anal_logger.py
 
 Purpose:
-    Lightweight utility for structured logging with elapsed time tracking and nested operations.
+    Lightweight utility for structured logging with elapsed time tracking,
+    nested operations, and automatic inclusion of log level, file, and function names.
 """
 
 import time
 from datetime import datetime
+import inspect
+import os
 
 class OmniAnalLogger:
     def __init__(self):
@@ -21,14 +24,53 @@ class OmniAnalLogger:
     def _indent(self) -> str:
         return self.indent_str * self.indent_level
 
+    def _caller_context(self, stack_depth: int = 3) -> str:
+        """
+        Returns a string like 'module.py.function_name' for the original caller.
+        """
+        frame = inspect.stack()[stack_depth]
+        module = inspect.getmodule(frame[0])
+        filename = os.path.basename(module.__file__) if module and hasattr(module, '__file__') else "unknown"
+        function = frame.function
+        return f"{filename}.{function}"
+
+    def _log(self, level: str, message: str) -> None:
+        """
+        Internal method to format and print a log message.
+
+        Parameters:
+            level (str): Log level (INFO, WARNING, ERROR)
+            message (str): The message to log
+        """
+        context = self._caller_context()
+        print(f"{self._timestamp()} [{level.upper()}] [{self._indent()}{context}] {message}")
+
     def info(self, message: str) -> None:
         """
-        Log a simple info message with indentation and timestamp.
+        Log an informational message.
 
         Parameters:
             message (str): The message to print.
         """
-        print(f"{self._timestamp()} {self._indent()}{message}")
+        self._log("INFO", message)
+
+    def warning(self, message: str) -> None:
+        """
+        Log a warning message.
+
+        Parameters:
+            message (str): The message to print.
+        """
+        self._log("WARNING", message)
+
+    def debug(self, message: str) -> None:
+        """
+        Log an dubug message.
+
+        Parameters:
+            message (str): The message to print.
+        """
+        self._log("DEBUG", message)
 
     def start(self, message: str) -> float:
         """
@@ -73,12 +115,12 @@ class OmniAnalLogger:
 
 class _TimerContext:
     def __init__(self, omni_anal_logger: OmniAnalLogger, message: str):
-        self.omni_anal_logger = omni_anal_logger
+        self.logger = omni_anal_logger
         self.message = message
         self.start_time = None
 
     def __enter__(self):
-        self.start_time = self.omni_anal_logger.start(self.message)
+        self.start_time = self.logger.start(self.message)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.logger.end(self.start_time)
