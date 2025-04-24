@@ -6,6 +6,7 @@ Purpose:
 """
 
 from pathlib import Path
+
 from utils.config import NC4_DATA_DIR, TRODES_DIR
 
 # ------------------------ #

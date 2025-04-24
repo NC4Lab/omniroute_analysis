@@ -10,10 +10,11 @@ from pathlib import Path
 import numpy as np
 from pandas import DataFrame
 
+from utils.omni_anal_logger import omni_anal_logger
 from utils.io_trodes import load_dio_binary
 from utils.io_rosbag import load_ros_sync_ts
-from utils.omni_anal_logger import omni_anal_logger
-
+from utils.path import get_synced_ts_dir
+from utils.versioning import save_version_info
 
 def compute_ts_sync_parameters(
     dio_path: Path,
@@ -91,7 +92,6 @@ def _validate_sync_alignment(
     
     Prints a summary of residuals, fit quality, and pulse alignment.
     """
-    import numpy as np
 
     # Compute residuals on matched pairs
     predicted = np.polyval(poly_coeffs, x_match)
@@ -141,30 +141,6 @@ def _validate_sync_alignment(
         raise ValueError(
             f"Sync validation failed: high-state DIO hit fraction = {high_hit_fraction:.3f} (must be > 0.9)"
         )
-
-def convert_sg_ts_to_ros_time(
-    sg_ts: np.ndarray,
-    sync_mapping: dict[str, any]
-) -> np.ndarray:
-    """
-    Convert SpikeGadgets timestamps to ROS time using fitted sync parameters.
-
-    Parameters:
-        sg_ts (np.ndarray): Array of timestamps in SpikeGadgets timebase (seconds).
-        sync_mapping (dict): Contains 'poly_coeffs' from compute_ts_sync_parameters().
-
-    Returns:
-        np.ndarray: Array of timestamps in ROS timebase (seconds).
-    """
-    if "poly_coeffs" not in sync_mapping:
-        raise ValueError("sync_mapping must contain 'poly_coeffs'")
-
-    poly = np.array(sync_mapping["poly_coeffs"])
-    ros_ts = np.polyval(poly, sg_ts)
-
-    omni_anal_logger.info(f"Converted {len(sg_ts)} SG timestamps to ROS timebase")
-    return ros_ts
-
 
 def align_timestamps_nw(x, y, new, match=1, mismatch=1, gap=1, thresh=0.1):
     """
@@ -288,8 +264,6 @@ def save_ts_sync_binary(ros_ts_array: np.ndarray, rat_id: str, session_name: str
         session_name (str): Session folder name (e.g., "20250328_134136").
         overwrite (bool): If False and file exists, skip saving.
     """
-    from utils.versioning import save_version_info
-    from utils.path import get_synced_ts_dir
 
     ts_dir = get_synced_ts_dir(rat_id, session_name)
     ts_path = ts_dir / "ros_times_from_csc.dat"
@@ -327,3 +301,26 @@ def load_ts_sync_binary(ts_dir: Path) -> np.ndarray:
 
     with omni_anal_logger.time_block("Loading synced ROS timestamps from binary"):
         return np.load(ts_path)
+    
+def convert_sg_ts_to_ros_time(
+    sg_ts: np.ndarray,
+    sync_mapping: dict[str, any]
+) -> np.ndarray:
+    """
+    Convert SpikeGadgets timestamps to ROS time using fitted sync parameters.
+
+    Parameters:
+        sg_ts (np.ndarray): Array of timestamps in SpikeGadgets timebase (seconds).
+        sync_mapping (dict): Contains 'poly_coeffs' from compute_ts_sync_parameters().
+
+    Returns:
+        np.ndarray: Array of timestamps in ROS timebase (seconds).
+    """
+    if "poly_coeffs" not in sync_mapping:
+        raise ValueError("sync_mapping must contain 'poly_coeffs'")
+
+    poly = np.array(sync_mapping["poly_coeffs"])
+    ros_ts = np.polyval(poly, sg_ts)
+
+    omni_anal_logger.info(f"Converted {len(sg_ts)} SG timestamps to ROS timebase")
+    return ros_ts

@@ -9,9 +9,8 @@ from pathlib import Path
 import os
 import numpy as np
 import subprocess
-from typing import Union
-import spikeinterface.extractors as se
-from spikeinterface import BaseRecording, NumpyRecording
+import spikeinterface.full as si
+from spikeinterface.core import BaseRecording, NumpyRecording
 from typing import Optional
 
 from utils.omni_anal_logger import omni_anal_logger
@@ -26,7 +25,7 @@ def load_sample_rate_from_rec(rec_path: Path) -> None:
     Parameters:
         rec_path (Path): Path to the .rec file.
     """
-    rec = se.read_spikegadgets(rec_path)
+    rec = si.read_spikegadgets(rec_path)
     return rec.get_sampling_frequency()
 
 def load_num_samples_from_rec(rec_path: Path) -> int:
@@ -39,7 +38,7 @@ def load_num_samples_from_rec(rec_path: Path) -> int:
     Returns:
         int: Number of total samples in the recording.
     """
-    rec = se.read_spikegadgets(rec_path)
+    rec = si.read_spikegadgets(rec_path)
     return rec.get_num_samples()
 
 def get_dio_sg_ts(dio_df: np.ndarray, sampling_rate_hz: float) -> np.ndarray:
@@ -147,6 +146,64 @@ def extract_dio_from_rec(rec_path: Path, dio_dir: Path, overwrite: bool = False)
     # Save version metadata alongside the extracted DIO files
     save_version_info(dio_dir)
 
+# def load_csc_from_rec(
+#     rec_path: Path,
+#     channel_trodes_id: list[int],
+#     channel_headstage_hardware_id: list[int],
+#     trodes_id_include: Optional[list[int]] = None
+# ) -> BaseRecording:
+#     """
+#     Load CSC data from a .rec file using SpikeInterface, map channel IDs to Trodes IDs,
+#     store tme as int and optionally filter by a provided list of Trodes IDs.
+
+#     Parameters:
+#         rec_path (Path): Path to the .rec file.
+#         channel_trodes_id (list[int]): List of Trodes IDs (logical labels from CSV).
+#         channel_headstage_hardware_id (list[int]): Corresponding hardware IDs for slicing.
+#         trodes_id_include (Optional[list[int]]): Subset of Trodes IDs to include (if provided).
+
+#     Returns:
+#         BaseRecording: A SpikeInterface recording with channel_ids set to Trodes IDs and optional filtering applied.
+#     """
+#     # Check for consistent mapping length
+#     if len(channel_trodes_id) != len(channel_headstage_hardware_id):
+#         raise ValueError("channel_trodes_id and channel_headstage_hardware_id must be the same length.")
+
+#     # Load full recording (initial channel_ids are hardware IDs)
+#     recording = si.read_spikegadgets(rec_path)
+
+#     # Normalize recording channel IDs to int to avoid mismatch during slicing
+#     recording.set_channel_ids([int(ch) for ch in recording.get_channel_ids()])
+
+#     # Verify that all hardware IDs are present in the loaded recording
+#     available_ids = set(recording.get_channel_ids())
+#     missing = [ch for ch in channel_headstage_hardware_id if ch not in available_ids]
+#     if missing:
+#         omni_anal_logger.info(f"Expected hardware IDs from metadata: {channel_headstage_hardware_id}")
+#         omni_anal_logger.info(f"Available hardware IDs in .rec file: {sorted(available_ids)}")
+#         raise ValueError(f"The following hardware IDs are missing in .rec: {missing}")
+
+#     # Slice only to known mapped hardware channels
+#     recording = recording.channel_slice(channel_ids=channel_headstage_hardware_id)
+
+#     # Update internal SI channel_ids to use Trodes IDs
+#     recording.set_channel_ids(channel_trodes_id)
+
+#     # Store hardware IDs as a channel property for traceability
+#     recording.set_property("hardware_id", channel_headstage_hardware_id)
+
+#     # If a subset of Trodes IDs is requested, apply additional filtering
+#     if trodes_id_include is not None:
+#         # Validate that all requested IDs exist
+#         missing = set(trodes_id_include) - set(channel_trodes_id)
+#         if missing:
+#             raise ValueError(f"Requested Trodes IDs not in known map: {missing}")
+
+#         recording = recording.channel_slice(channel_ids=trodes_id_include)
+
+#     # The recording now uses Trodes IDs as channel_ids, and hardware IDs are preserved as a property
+#     return recording
+
 def load_csc_from_rec(
     rec_path: Path,
     channel_trodes_id: list[int],
@@ -154,7 +211,7 @@ def load_csc_from_rec(
     trodes_id_include: Optional[list[int]] = None
 ) -> BaseRecording:
     """
-    Load CSC data from a .rec file using SpikeInterface, map channel IDs to Trodes IDs,
+    Load CSC data from a .rec file using SpikeInterface, map hardware IDs to Trodes IDs,
     and optionally filter by a provided list of Trodes IDs.
 
     Parameters:
@@ -164,34 +221,48 @@ def load_csc_from_rec(
         trodes_id_include (Optional[list[int]]): Subset of Trodes IDs to include (if provided).
 
     Returns:
-        BaseRecording: A SpikeInterface recording with channel_ids set to Trodes IDs and optional filtering applied.
+        BaseRecording: A mutable NumpyRecording with Trodes IDs and hardware ID properties.
     """
-    # Check for consistent mapping length
     if len(channel_trodes_id) != len(channel_headstage_hardware_id):
         raise ValueError("channel_trodes_id and channel_headstage_hardware_id must be the same length.")
 
-    # Load full recording (initial channel_ids are hardware IDs)
-    recording = se.read_spikegadgets(rec_path)
+    # Load original SpikeGadgets recording
+    base_rec = si.read_spikegadgets(rec_path)
 
-    # Slice only to known mapped hardware channels
-    recording = recording.channel_slice(channel_ids=channel_headstage_hardware_id)
+    # Raw extractor may return string channel IDs — convert to int for safe comparison
+    raw_channel_ids = base_rec.get_channel_ids()
+    id_map = {int(cid): cid for cid in raw_channel_ids}  # Maps int_id -> original (likely str)
 
-    # Update internal SI channel_ids to use Trodes IDs
-    recording.set_channel_ids(channel_trodes_id)
+    # Validate that all requested hardware IDs are available
+    missing = [hid for hid in channel_headstage_hardware_id if hid not in id_map]
+    if missing:
+        omni_anal_logger.info(f"Available hardware IDs in .rec file: {sorted(id_map.keys())}")
+        raise ValueError(f"The following hardware IDs are missing in .rec: {missing}")
 
-    # Store hardware IDs as a channel property for traceability
+    # Convert hardware IDs to the raw extractor format (likely strings) for slicing
+    slice_ids = [id_map[hid] for hid in channel_headstage_hardware_id]
+    base_rec = base_rec.channel_slice(channel_ids=slice_ids)
+
+    # Convert to memory-backed NumpyRecording
+    traces = base_rec.get_traces()
+    sfreq = base_rec.get_sampling_frequency()
+
+    recording = NumpyRecording(
+        traces_list=[traces],
+        sampling_frequency=sfreq,
+        channel_ids=channel_trodes_id,  # Replace extractor-native IDs with Trodes IDs
+    )
+
+    # Store original hardware ID (int) as a traceable property
     recording.set_property("hardware_id", channel_headstage_hardware_id)
 
-    # If a subset of Trodes IDs is requested, apply additional filtering
+    # Optionally filter to a subset of Trodes IDs
     if trodes_id_include is not None:
-        # Validate that all requested IDs exist
         missing = set(trodes_id_include) - set(channel_trodes_id)
         if missing:
             raise ValueError(f"Requested Trodes IDs not in known map: {missing}")
-
         recording = recording.channel_slice(channel_ids=trodes_id_include)
 
-    # The recording now uses Trodes IDs as channel_ids, and hardware IDs are preserved as a property
     return recording
 
 def save_csc_binary(csc_dir: Path, recording: BaseRecording, overwrite: bool = False) -> None:
@@ -232,11 +303,6 @@ def save_csc_binary(csc_dir: Path, recording: BaseRecording, overwrite: bool = F
             omni_anal_logger.info(f"Saved CSC channel {chan_id} to: {file_path}")
 
     # Save processing version info
-    save_version_info(csc_dir)
-    omni_anal_logger.info(f"Saved CSC version info to: {csc_dir}")
-
-
-    # Save metadata for version tracking
     save_version_info(csc_dir)
     omni_anal_logger.info(f"Saved CSC version info to: {csc_dir}")
 
