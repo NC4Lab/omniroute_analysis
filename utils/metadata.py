@@ -14,7 +14,7 @@ from typing import Any, Literal
 
 from utils.omni_anal_logger import omni_anal_logger
 from utils.versioning import get_version_info
-from utils.io_trodes import load_sample_rate_from_rec, load_num_samples_from_rec
+from utils.io_trodes import load_sample_rate_from_rec, load_num_samples_from_rec, load_gain_to_uV_from_rec
 from utils.path import (
     get_rec_path,
     get_rat_dir,
@@ -201,6 +201,7 @@ class EphysMetadata(BaseMetadata):
         self.channel_headstage_hardware_id: list[int] = []   # Corresponding hardware channel IDs
         self.sampling_rate_hz: float | None = None
         self.num_samples: float | None = None
+        self.gain_to_uv: float | None = None
         self.timestamp_mapping: dict[str, Any] | None = None
 
     def post_initialize(self) -> None:
@@ -210,9 +211,10 @@ class EphysMetadata(BaseMetadata):
         rec_path = get_rec_path(self.rat_id, self.session_name)
         channel_map_path = get_ephys_channel_map_csv_path(self.rat_id)
 
-        # Load and store sampling rate and number of samples from the .rec file
+        # Load and store sampling rate, number of samples and gain from the .rec file
         self.sampling_rate_hz = load_sample_rate_from_rec(rec_path)
         self.num_samples = load_num_samples_from_rec(rec_path)
+        self.gain_to_uv = load_gain_to_uV_from_rec(rec_path)
         omni_anal_logger.info(f"Stored num_samples: {self.num_samples}, sampling_rate_hz: {self.sampling_rate_hz}")
         
         # Load and store the channel mapping

@@ -23,7 +23,6 @@ export_dir = Path(
     r"C:\Users\lester\UBC\Madhav, Manu - lesterkaur2024gate\analysis\gate_ephys_test\data\NC40008\20250328_134136\processed\matlab_csc"
 )
 overwrite = True
-include_ros_ts = True
 
 # ----------------------------
 # Load metadata and CSC recording
@@ -40,9 +39,11 @@ ephys_meta.load_or_initialize_pickle()
 
 sampling_rate = ephys_meta.sampling_rate_hz
 trodes_ids = ephys_meta.channel_trodes_id
+gain_to_uv = ephys_meta.gain_to_uv
 
 omni_anal_logger.info(f"Sampling rate: {sampling_rate} Hz")
 omni_anal_logger.info(f"Channel count: {len(trodes_ids)}")
+omni_anal_logger.info(f"Gain to uV: {gain_to_uv}")
 
 omni_anal_logger.info("Loading CSC traces from .rec file using channel mapping...")
 recording = load_csc_from_rec(
@@ -66,13 +67,9 @@ omni_anal_logger.info(f"Generated {len(trodes_ts)} timestamps (SG timebase)")
 # Optionally compute ROS-aligned timestamps
 # ----------------------------
 ros_ts = None
-if include_ros_ts:
-    omni_anal_logger.info("Attempting to compute ROS-aligned timestamps...")
-    if not hasattr(ephys_meta, "timestamp_mapping") or ephys_meta.timestamp_mapping is None:
-        omni_anal_logger.warning("No timestamp mapping found in ephys_meta — skipping ROS timestamps.")
-    else:
-        ros_ts = convert_sg_ts_to_ros_time(trodes_ts, sync_mapping=ephys_meta.timestamp_mapping)
-        omni_anal_logger.info(f"Computed {len(ros_ts)} timestamps in ROS timebase")
+omni_anal_logger.info("Attempting to compute ROS-aligned timestamps...")
+ros_ts = convert_sg_ts_to_ros_time(trodes_ts, sync_mapping=ephys_meta.timestamp_mapping)
+omni_anal_logger.info(f"Computed {len(ros_ts)} timestamps in ROS timebase")
 
 # ----------------------------
 # Prepare MATLAB-compatible export structure
@@ -82,10 +79,10 @@ mat_data = {
     "csc_data": traces.astype(np.float32),       # (n_samples x n_channels)
     "trodes_ts": trodes_ts.astype(np.float64),   # (n_samples)
     "trodes_ids": np.array(trodes_ids),          # (n_channels)
-    "sampling_rate": sampling_rate               # scalar
+    "ros_ts": ros_ts.astype(np.float64),         # (n_channels)
+    "sampling_rate": sampling_rate,              # scalar
+    "gain_to_uv": gain_to_uv                     # scalar
 }
-if ros_ts is not None:
-    mat_data["ros_ts"] = ros_ts.astype(np.float64)
 
 # ----------------------------
 # Save to .mat file
